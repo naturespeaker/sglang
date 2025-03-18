@@ -15,7 +15,9 @@
 
 import argparse
 import dataclasses
+import json
 import logging
+import os
 import random
 import tempfile
 from typing import List, Optional
@@ -130,9 +132,9 @@ class ServerArgs:
     # Speculative decoding
     speculative_algorithm: Optional[str] = None
     speculative_draft_model_path: Optional[str] = None
-    speculative_num_steps: int = 5
-    speculative_eagle_topk: int = 4
-    speculative_num_draft_tokens: int = 8
+    speculative_num_steps: Optional[int] = None
+    speculative_eagle_topk: Optional[int] = None
+    speculative_num_draft_tokens: Optional[int] = None
     speculative_accept_threshold_single: float = 1.0
     speculative_accept_threshold_acc: float = 1.0
     speculative_token_map: Optional[str] = None
@@ -299,6 +301,19 @@ class ServerArgs:
                 "Overlap scheduler is disabled because of using "
                 "eagle speculative decoding."
             )
+
+            # Auto choose parameters
+            if self.speculative_num_steps is None:
+                assert (
+                    self.speculative_eagle_topk is None
+                    and self.speculative_num_draft_tokens is None
+                )
+                (
+                    self.speculative_num_steps,
+                    self.speculative_eagle_topk,
+                    self.speculative_num_draft_tokens,
+                ) = auto_choose_speculative_params(self)
+
             # The token generated from the verify step is counted.
             # If sepculative_num_steps >= speculative_num_draft_tokens, the additional tokens will definitely be discarded.
             # assert self.speculative_num_steps < self.speculative_num_draft_tokens
@@ -1193,3 +1208,25 @@ class DeprecatedAction(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         raise ValueError(self.help)
+
+
+def auto_choose_speculative_params(self: ServerArgs):
+    """
+    Automatically choose the parameters for speculative decoding.
+
+    You can tune them on your own models and prompts with scripts/playground/bench_speculative.py
+    """
+    config_path = os.path.join(self.model_path, "config.json")
+    if not os.path.exists(config_path):
+        raise ValueError(f"{config_path} is not found.")
+
+    config = json.load(open(config_path))
+
+    arch = config.get("architectures", ["Unknown"])[0]
+
+    if arch in ["LlamaForCausalLM"]:
+        # The default value for llama
+        return (5, 4, 8)
+    else:
+        # The default value for all other models
+        return (5, 4, 8)
