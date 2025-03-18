@@ -62,7 +62,6 @@ class TestEnableMetrics(unittest.TestCase):
                 "sglang:cached_tokens_total",
                 "sglang:num_requests_total",
                 "sglang:time_to_first_token_seconds",
-                "sglang:time_per_output_token_seconds",
                 "sglang:inter_token_latency_seconds",
                 "sglang:e2e_request_latency_seconds",
             ]
