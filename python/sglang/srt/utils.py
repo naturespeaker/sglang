@@ -1870,3 +1870,23 @@ def is_hopper_with_cuda_12_3():
     cuda_version = torch.version.cuda.split(".")
     is_cuda_compatible = int(cuda_version[0]) == 12 and int(cuda_version[1]) >= 3
     return is_hopper and is_cuda_compatible
+
+
+def is_no_spec_infer_or_topk_one(server_args):
+    return server_args.speculative_eagle_topk is None or (
+        server_args.speculative_eagle_topk is not None
+        and server_args.speculative_eagle_topk == 1
+    )
+
+
+def is_fa3_default_architecture(hf_config):
+    architectures = getattr(hf_config, "architectures", None)
+    if not isinstance(architectures, list) or not architectures:
+        return False
+    default_archs = {
+        "Qwen2ForCausalLM",
+        "Llama4ForConditionalGeneration",
+        "LlamaForCausalLM",
+        "MistralForCausalLM",
+    }
+    return architectures[0] in default_archs
